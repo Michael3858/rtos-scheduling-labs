@@ -1,6 +1,6 @@
 # RTOS Scheduling Labs
 
-以 μC/OS-II 的 Windows／Visual Studio 範例為基底，練習週期性任務、即時排程、非週期性工作與共享資源控制。
+以 μC/OS-II 的範例為基底，練習週期性任務、即時排程、非週期性工作與共享資源控制。
 
 ## 作業內容
 
