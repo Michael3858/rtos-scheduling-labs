@@ -1,0 +1,29 @@
+# 本機還原的專案與課程基底
+/work/
+/baseline/
+
+# Visual Studio 快取與編譯產物
+.vs/
+[Dd]ebug/
+[Rr]elease/
+ipch/
+x64/
+x86/
+*.obj
+*.pdb
+*.ilk
+*.idb
+*.ipch
+*.sdf
+*.opensdf
+*.VC.db
+*.VC.opendb
+*.vsidx
+*.tlog
+*.suo
+*.user
+*.log
+*.lastbuildstate
+
+# 執行時產生的輸出
+Output.txt
