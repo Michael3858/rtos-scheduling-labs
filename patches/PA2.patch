@@ -1,0 +1,1318 @@
+diff --git a/Micrium/Software/uCOS-II/Ports/Win32/Visual Studio/os_cpu_c.c b/Micrium/Software/uCOS-II/Ports/Win32/Visual Studio/os_cpu_c.c
+index cbdffe8..275e172 100644
+--- a/Micrium/Software/uCOS-II/Ports/Win32/Visual Studio/os_cpu_c.c	
++++ b/Micrium/Software/uCOS-II/Ports/Win32/Visual Studio/os_cpu_c.c	
+@@ -623,7 +623,7 @@ void  OSTCBInitHook (OS_TCB  *p_tcb)
+     }
+ 
+ #if (OS_MSG_TRACE > 0u)
+-    OS_Printf("Task[%3.1d] created, Thread ID %5.0d\n", p_tcb->OSTCBPrio, p_stk->ThreadID);
++    //OS_Printf("Task[%3.1d] created, Thread ID %5.0d\n", p_tcb->OSTCBPrio, p_stk->ThreadID);
+ #endif
+ 
+     p_stk->TaskState = STATE_CREATED;
+@@ -1234,7 +1234,7 @@ static  DWORD  WINAPI  OSTaskW32 (LPVOID  p_arg)
+     OSSetThreadName(p_stk->ThreadID, p_tcb->OSTCBTaskName);
+ 
+ #if (OS_MSG_TRACE > 0u)
+-    OS_Printf("Task[%3.1d] '%s' Running\n", p_tcb->OSTCBPrio, p_tcb->OSTCBTaskName);
++    //OS_Printf("Task[%3.1d] '%s' Running\n", p_tcb->OSTCBPrio, p_tcb->OSTCBTaskName);
+ #endif
+ 
+     p_stk->TaskState = STATE_RUNNING;
+diff --git a/Micrium/Software/uCOS-II/Source/os_core.c b/Micrium/Software/uCOS-II/Source/os_core.c
+index d6366ec..c5a93fb 100644
+--- a/Micrium/Software/uCOS-II/Source/os_core.c
++++ b/Micrium/Software/uCOS-II/Source/os_core.c
+@@ -36,7 +36,70 @@
+ #define  OS_GLOBALS
+ #include <ucos_ii.h>
+ #endif
++static INT32U OS_JobCnt[OS_LOWEST_PRIO + 1];
++static void OS_TraceCtxSw(void);
+ 
++static void OS_TraceCtxSw(void)
++{
++    OS_TCB* cur = OSTCBCur;
++    OS_TCB* next = OSTCBHighRdy;
++
++    OS_TCB* idle_tcb = OSTCBPrioTbl[OS_LOWEST_PRIO];
++    INT8U   cur_is_idle = (cur == idle_tcb);
++    INT8U   next_is_idle = (next == idle_tcb);
++
++    INT8U cur_prio = OSPrioCur;
++    INT8U next_prio = OSPrioHighRdy;
++
++    unsigned cur_id_disp = cur_is_idle ? OS_LOWEST_PRIO : (cur ? cur->OSTCBId : 0);
++    unsigned next_id_disp = next_is_idle ? OS_LOWEST_PRIO : (next ? next->OSTCBId : 0);
++
++    unsigned long cur_job = OS_JobCnt[cur_prio];
++    unsigned long next_job = OS_JobCnt[next_prio];
++
++    unsigned long ctx_print = (OSCtxSwCtr > 0u) ? (OSCtxSwCtr - 1u) : 0u;
++
++    if (!cur_is_idle && next_is_idle) {
++        printf("%-4d\ttask(%3d)(%3d)\ttask(%3d)        \t%d\r\n",
++            (unsigned long)OSTime, cur_id_disp, cur_job,
++            next_id_disp, ctx_print);
++
++        if ((Output_err = fopen_s(&Output_fp, "./Output.txt", "a")) == 0) {
++            fprintf(Output_fp, "%-4d\ttask(%3d)(%3d)\ttask(%3d)        \t%d\r\n",
++                (unsigned long)OSTime, cur_id_disp, cur_job,
++                next_id_disp, ctx_print);
++            fclose(Output_fp);
++        }
++    }
++    else if (cur_is_idle && !next_is_idle) {
++        printf("%-4d\ttask(%3d)     \ttask(%3d)(%3d)   \t%d\r\n",
++            (unsigned long)OSTime, cur_id_disp,
++            next_id_disp, next_job, ctx_print);
++
++        if ((Output_err = fopen_s(&Output_fp, "./Output.txt", "a")) == 0) {
++            fprintf(Output_fp, "%-4d\ttask(%3d)     \ttask(%3d)(%3d)   \t%d\r\n",
++                (unsigned long)OSTime, cur_id_disp,
++                next_id_disp, next_job, ctx_print);
++            fclose(Output_fp);
++        }
++    }
++    else if (!cur_is_idle && !next_is_idle) {
++        printf("%-4d\ttask(%3d)(%3d)\ttask(%3d)(%3d)   \t%d\r\n",
++            (unsigned long)OSTime, cur_id_disp, cur_job,
++            next_id_disp, next_job, ctx_print);
++
++        if ((Output_err = fopen_s(&Output_fp, "./Output.txt", "a")) == 0) {
++            fprintf(Output_fp, "%-4d\ttask(%3d)(%3d)\ttask(%3d)(%3d)   \t%d\r\n",
++                (unsigned long)OSTime, cur_id_disp, cur_job,
++                next_id_disp, next_job, ctx_print);
++            fclose(Output_fp);
++        }
++    }
++
++    if (!cur_is_idle) {
++        OS_JobCnt[cur_prio]++;
++    }
++}
+ /*
+ *********************************************************************************************************
+ *                                      PRIORITY RESOLUTION TABLE
+@@ -714,6 +777,7 @@ void  OSIntExit (void)
+                     OSTCBHighRdy->OSTCBCtxSwCtr++;         /* Inc. # of context switches to this task  */
+ #endif
+                     OSCtxSwCtr++;                          /* Keep track of the number of ctx switches */
++                    //OS_TraceCtxSw();
+ 
+ #if OS_TASK_CREATE_EXT_EN > 0u
+ #if defined(OS_TLS_TBL_SIZE) && (OS_TLS_TBL_SIZE > 0u)
+@@ -959,6 +1023,10 @@ void  OSTimeTick (void)
+ #endif
+     if (OSRunning == OS_TRUE) {
+ #if OS_TICK_STEP_EN > 0u
++        if (OSTimeGet() > SYSTEM_END_TIME) {
++            OSRunning = OS_FALSE;
++            exit(0);
++        }
+         switch (OSTickStepState) {                         /* Determine whether we need to process a tick  */
+             case OS_TICK_STEP_DIS:                         /* Yes, stepping is disabled                    */
+                  step = OS_TRUE;
+@@ -1718,7 +1786,7 @@ void  OS_Sched (void)
+                 OSTCBHighRdy->OSTCBCtxSwCtr++;         /* Inc. # of context switches to this task      */
+ #endif
+                 OSCtxSwCtr++;                          /* Increment context switch counter             */
+-
++                //OS_TraceCtxSw();
+ #if OS_TASK_CREATE_EXT_EN > 0u
+ #if defined(OS_TLS_TBL_SIZE) && (OS_TLS_TBL_SIZE > 0u)
+                 OS_TLS_TaskSw();
+@@ -1754,7 +1822,6 @@ static  void  OS_SchedNew (void)
+ #if OS_LOWEST_PRIO <= 63u                        /* See if we support up to 64 tasks                   */
+     INT8U   y;
+ 
+-
+     y             = OSUnMapTbl[OSRdyGrp];
+     OSPrioHighRdy = (INT8U)((y << 3u) + OSUnMapTbl[OSRdyTbl[y]]);
+ #else                                            /* We support up to 256 tasks                         */
+@@ -2120,6 +2187,10 @@ INT8U  OS_TCBInit (INT8U    prio,
+ #endif
+ 
+         OS_ENTER_CRITICAL();
++        if (prio == OS_LOWEST_PRIO) {
++            id = OS_LOWEST_PRIO;
++        }
++        printf("Task[%2u] created, TCB Address %p\n", id, OSTCBPrioTbl[prio]);
+         ptcb->OSTCBNext = OSTCBList;                       /* Link into TCB chain                      */
+         ptcb->OSTCBPrev = (OS_TCB *)0;
+         if (OSTCBList != (OS_TCB *)0) {
+@@ -2129,6 +2200,10 @@ INT8U  OS_TCBInit (INT8U    prio,
+         OSRdyGrp               |= ptcb->OSTCBBitY;         /* Make task ready to run                   */
+         OSRdyTbl[ptcb->OSTCBY] |= ptcb->OSTCBBitX;
+         OSTaskCtr++;                                       /* Increment the #tasks counter             */
++        printf("------After TCB[%2u] begin linked------\n", id);
++        printf("Previous TCB point to adress %p\n", ptcb->OSTCBPrev);
++        printf("Current  TCB point to adress %p\n", ptcb);
++        printf("Next     TCB point to adress %p\n\n", ptcb->OSTCBNext);
+         OS_TRACE_TASK_READY(ptcb);
+         OS_EXIT_CRITICAL();
+         return (OS_ERR_NONE);
+diff --git a/Micrium/Software/uCOS-II/Source/ucos_ii.h b/Micrium/Software/uCOS-II/Source/ucos_ii.h
+index 861531c..8fceb7b 100644
+--- a/Micrium/Software/uCOS-II/Source/ucos_ii.h
++++ b/Micrium/Software/uCOS-II/Source/ucos_ii.h
+@@ -61,6 +61,67 @@ extern "C" {
+ *********************************************************************************************************
+ */
+ 
++#include <string.h>
++#define SYSTEM_END_TIME 40
++
++#define INPUT_FILE_NAME "./TaskSet.txt"
++#define OUTPUT_FILE_NAME "./Output.txt"
++#define APERIODIC_FILE_NAME "./Aperiodicjobs.txt"
++#define RM 0
++#define FIFO 1
++#define EDF 2
++#define ALGORITHM EDF
++#define MAX 20
++#define INFO 4
++
++struct os_event;              // 前置宣告 tag
++typedef struct os_event OS_EVENT; 
++
++typedef struct task_para_set {
++    INT16U TaskID;
++    INT16U TaskArriveTime;
++    INT16U TaskExecutionTIme;
++    INT16U TaskPeriodic;
++    INT16U TaskNumber;
++    INT16U TaskPriority;
++    INT16U release;         // 這次 job 的抵達
++    INT16U next_release;    // 下一次抵達時刻
++    INT16U deadline;        // = release + TaskPeriodic
++    INT16U rem;             // 尚需執行時間（tick）
++    INT16U k;               // job 編號 0,1,2...
++    INT16U preempt_wait;    // 這個 job 被較高優先權擠掉的累積 tick
++    INT16U active;          // 1=有 job(rem>0)
++    INT16U just_finished;   // 1=剛完成 等 TickHook 印 Completion
++    INT8U arrive_now;       // 這個 tick 是否有新 job 抵達
++    OS_EVENT* run_sem;      // 每 tick 發 token 用
++} task_para_set;
++
++typedef struct aperiodic_job_set {
++    INT16U job_no;
++    INT16U arrive;
++    INT16U exec;
++    INT16U abs_deadline;
++} aperiodic_job_set;
++
++#define MAX_APERIODIC_JOBS  16
++
++int TASK_NUMBER;
++OS_STK** Task_STK;
++task_para_set TaskParameter[OS_MAX_TASKS];
++
++INT16U           ServerID;
++INT16U           ServerSize;      
++INT16U           AperiodicJobNum;
++aperiodic_job_set AperiodicJobs[MAX_APERIODIC_JOBS];
++
++FILE* fp;
++FILE* Output_fp;
++errno_t Output_err;
++
++void    OutFileInit(void);
++void    InputFile(void);
++
++
+ #ifdef   OS_GLOBALS
+ #define  OS_EXT
+ #else
+@@ -633,6 +694,7 @@ typedef struct os_tcb {
+ #if OS_TASK_REG_TBL_SIZE > 0u
+     INT32U           OSTCBRegTbl[OS_TASK_REG_TBL_SIZE];
+ #endif
++
+ } OS_TCB;
+ 
+ 
+@@ -1992,3 +2054,6 @@ void          OSCtxSw                 (void);
+ #endif
+ 
+ #endif
++#if OS_HW_TRACE
++void OS_LogTCBLink(const OS_TCB* ptcb);
++#endif
+\ No newline at end of file
+diff --git b/Microsoft/Windows/Kernel/OS2/VS/AperiodicJobs.txt b/Microsoft/Windows/Kernel/OS2/VS/AperiodicJobs.txt
+new file mode 100644
+index 0000000..2b98bfc
+--- /dev/null
++++ b/Microsoft/Windows/Kernel/OS2/VS/AperiodicJobs.txt
+@@ -0,0 +1,2 @@
++0 7 1 23
++1 10 2 25
+\ No newline at end of file
+diff --git b/Microsoft/Windows/Kernel/OS2/VS/TaskSet.txt b/Microsoft/Windows/Kernel/OS2/VS/TaskSet.txt
+new file mode 100644
+index 0000000..3adeaf1
+--- /dev/null
++++ b/Microsoft/Windows/Kernel/OS2/VS/TaskSet.txt
+@@ -0,0 +1,2 @@
++1 0 2 4
++2 0 4 7
+\ No newline at end of file
+diff --git a/Microsoft/Windows/Kernel/OS2/app_hooks.c b/Microsoft/Windows/Kernel/OS2/app_hooks.c
+index 039fd44..544f47f 100644
+--- a/Microsoft/Windows/Kernel/OS2/app_hooks.c
++++ b/Microsoft/Windows/Kernel/OS2/app_hooks.c
+@@ -45,6 +45,319 @@
+ */
+ 
+ 
++void OutFileInit() {
++    if ((Output_err = fopen_s(&Output_fp, OUTPUT_FILE_NAME, "w") == 0))
++        fclose(Output_fp);
++    else
++        printf("Error to clear output file");
++}
++
++extern INT16U  ServerID;
++extern INT16U  ServerSize;
++extern INT16U  AperiodicJobNum;
++extern aperiodic_job_set AperiodicJobs[MAX_APERIODIC_JOBS];
++
++INT8U  CUS_ServerJustDone = 0;     // server 剛在上一個 tick 做完所有 aperiodic
++INT16S CUS_LastJobDone = -1;    // 上一個 tick 結束的 aperiodic job index
++INT32U CUS_ServerResp = 0;
++INT32U CUS_ServerPree = 0;
++
++/* CUS runtime 狀態（只在 EDF + 有 Server 時會用到） */
++static INT8U  CUS_Inited = 0;
++static INT8U  CUS_Backlogged = 0;          /* 是否有 backlog 的 aperiodic job */
++static INT32U CUS_ServerDeadline = 0;          /* CUS 的動態 deadline */
++static INT16S CUS_ServerIdx = -1;         /* 對應到 TaskParameter[] 的哪一個 */
++
++static INT32U CUS_RemExec[MAX_APERIODIC_JOBS];  /* 每個 aperiodic job 剩餘執行時間 */
++static INT8U  CUS_Accepted[MAX_APERIODIC_JOBS]; /* 是否被接受排程 */
++static INT8U  CUS_Finished[MAX_APERIODIC_JOBS]; /* 是否已完成或被 reject */
++
++#if (ALGORITHM == EDF)
++INT8U  CUS_ServerHasJob = 0;   // 目前這個 server job 是否已有被指派的 aperiodic job
++INT32U CUS_ServerFirstArrive = 0;   // 目前這個 server job 服務的 job 中，最早的抵達時間
++INT32U CUS_ServerExecSum = 0;   // 目前這個 server job 服務的 aperiodic job 總執行時間和
++#endif
++
++void InputFile() {
++    errno_t err;
++
++    if ((err = fopen_s(&fp, INPUT_FILE_NAME, "r")) == 0)
++        printf("The file '%s' was opened\n", INPUT_FILE_NAME);
++    else 
++        printf("The file %s was not opened", INPUT_FILE_NAME);
++
++    char str[MAX];
++    char* ptr;
++    char* pTmp = NULL;
++    int TaskInfo[INFO], i, j = 0;
++    TASK_NUMBER = 0;
++    ServerID = 0;
++    ServerSize = 0;
++
++    while (!feof(fp)) {
++        i = 0;
++        memset(str, 0, sizeof(str));
++        fgets(str, sizeof(str) - 1, fp);
++        ptr = strtok_s(str, " ", &pTmp);
++
++        while (ptr != NULL && i < INFO) {
++            TaskInfo[i] = atoi(ptr);
++            ptr = strtok_s(NULL, " ", &pTmp);
++            i++;
++        }
++
++        if (i == 2) {
++            ServerID = TaskInfo[0];
++            ServerSize = TaskInfo[1]; 
++        }
++        else if (i >= 4) {
++            TASK_NUMBER++;
++            TaskParameter[j].TaskID = TaskInfo[0];
++            TaskParameter[j].TaskArriveTime = TaskInfo[1];
++            TaskParameter[j].TaskExecutionTIme = TaskInfo[2];
++            TaskParameter[j].TaskPeriodic = TaskInfo[3];
++            TaskParameter[j].TaskPriority = j;
++
++            j++;
++        }
++    }
++    if (ServerID > 0 && ServerSize > 0) {
++        int exists = 0;
++        for (int k = 0; k < TASK_NUMBER; k++) {
++            if (TaskParameter[k].TaskID == ServerID) {
++                exists = 1;
++                break;
++            }
++        }
++
++        if (!exists) {
++            int idx = TASK_NUMBER;
++
++            TaskParameter[idx].TaskID = ServerID;
++            TaskParameter[idx].TaskArriveTime = 0;  
++            TaskParameter[idx].TaskExecutionTIme = 0;  
++            TaskParameter[idx].TaskPeriodic = 0;
++            TaskParameter[idx].TaskPriority = idx; 
++
++            TaskParameter[idx].next_release = 0;
++            TaskParameter[idx].active = 0;
++            TaskParameter[idx].rem = 0;
++            TaskParameter[idx].k = 0;
++            TaskParameter[idx].arrive_now = 0;
++            TaskParameter[idx].preempt_wait = 0;
++            TaskParameter[idx].just_finished = 0;
++            TaskParameter[idx].run_sem = NULL; 
++
++            TASK_NUMBER++;
++        }
++    }
++    fclose(fp);
++}
++void InputAperiodicJobs(void)
++{
++    errno_t err;
++    FILE* afp;
++
++    AperiodicJobNum = 0;
++
++    if ((err = fopen_s(&afp, APERIODIC_FILE_NAME, "r")) != 0) {
++        printf("The file %s was not opened\n", APERIODIC_FILE_NAME);
++        return;
++    }
++    printf("The file '%s' was opened\n", APERIODIC_FILE_NAME);
++
++    char  str[MAX];
++    char* ctx = NULL;
++    int   vals[4];
++
++    while (fgets(str, sizeof(str), afp)) {
++
++        if (str[0] == '\n' || str[0] == '\r' || str[0] == '\0')
++            continue;
++
++        int i = 0;
++        char* tok = strtok_s(str, " ", &ctx);
++        while (tok != NULL && i < 4) {
++            vals[i++] = atoi(tok);
++            tok = strtok_s(NULL, " ", &ctx);
++        }
++
++        if (i == 4 && AperiodicJobNum < MAX_APERIODIC_JOBS) {
++            AperiodicJobs[AperiodicJobNum].job_no = vals[0];
++            AperiodicJobs[AperiodicJobNum].arrive = vals[1];
++            AperiodicJobs[AperiodicJobNum].exec = vals[2];
++            AperiodicJobs[AperiodicJobNum].abs_deadline = vals[3];
++            CUS_RemExec[AperiodicJobNum] = vals[2];
++            CUS_Accepted[AperiodicJobNum] = 0;
++            CUS_Finished[AperiodicJobNum] = 0;
++            AperiodicJobNum++;
++        }
++    }
++
++    fclose(afp);
++}
++volatile INT32U g_now = 0;
++volatile INT8U g_halt_after_miss = 0;
++static task_para_set* pick_ready_or_arrival(void) {
++    task_para_set* best = NULL;
++    for (int i = 0; i < TASK_NUMBER; i++) {
++        task_para_set* tp = &TaskParameter[i];
++        if ((tp->active && tp->rem > 0) || tp->arrive_now) {
++            if (!best) {
++                best = tp;
++                continue;
++            }
++#if (ALGORITHM == RM)
++            if (tp->TaskPriority < best->TaskPriority)
++                best = tp;
++
++#elif (ALGORITHM == FIFO)
++            INT32U a_rel = (tp->active ? tp->release : g_now);
++            INT32U b_rel = (best->active ? best->release : g_now);
++
++            if (a_rel < b_rel) {
++                best = tp;
++            }
++            else if (a_rel == b_rel && tp->TaskID < best->TaskID) {
++                best = tp;
++            }
++#elif (ALGORITHM == EDF)
++            INT32U a_dead = tp->deadline;
++            INT32U b_dead = best->deadline;
++
++            if (tp->arrive_now)   a_dead = g_now + tp->TaskPeriodic;
++            if (best->arrive_now) b_dead = g_now + best->TaskPeriodic;
++
++            if (a_dead < b_dead) {
++                best = tp;
++            }
++            else if (a_dead == b_dead && tp->TaskID < best->TaskID) {
++                best = tp;
++            }
++#endif
++        }
++
++    }
++    return best;
++}
++
++/* 找到 server 對應的 TaskParameter[] index（用 ServerID 對 TaskID 比） */
++static void CUS_FindServerIndex(void)
++{
++    if (CUS_ServerIdx >= 0) return;
++
++    for (int i = 0; i < TASK_NUMBER; i++) {
++        if (TaskParameter[i].TaskID == ServerID) {
++            CUS_ServerIdx = i;
++            break;
++        }
++    }
++}
++
++/* 初始化 CUS 的各種狀態，只會在第一次啟動 CUS 時做一次 */
++static void CUS_InitIfNeeded(void)
++{
++    static INT8U inited = 0;
++    if (inited) return;
++    inited = 1;
++
++    CUS_ServerIdx = -1;
++
++    // 在 TaskParameter[] 裡找 TaskID == ServerID 的那一個
++    for (int i = 0; i < TASK_NUMBER; i++) {
++        if (TaskParameter[i].TaskID == ServerID) {
++            CUS_ServerIdx = i;
++            break;
++        }
++    }
++
++    if (CUS_ServerIdx < 0) {
++        printf("ERROR: CUS server task (ID=%d) not found in TaskParameter[]\n", ServerID);
++    }
++
++    // 初始化 CUS 陣列（依你原本的寫法調）
++    for (int j = 0; j < MAX_APERIODIC_JOBS; j++) {
++        CUS_Accepted[j] = 0;
++        CUS_Finished[j] = 0;
++        // CUS_RemExec[j] 應該在讀 AperiodicJobs 時填 exec
++    }
++
++    CUS_Backlogged = 0;
++    CUS_ServerDeadline = 0;
++    CUS_ServerHasJob = 0;
++    CUS_ServerFirstArrive = 0;
++    CUS_ServerExecSum = 0;
++}
++
++/* backlog 總剩餘執行時間 */
++static INT32U CUS_TotalRemExec(void)
++{
++    INT32U sum = 0;
++    for (int j = 0; j < AperiodicJobNum && j < MAX_APERIODIC_JOBS; j++) {
++        if (CUS_Accepted[j] && !CUS_Finished[j]) {
++            sum += CUS_RemExec[j];
++        }
++    }
++    return sum;
++}
++
++/* backlog 中最小 absolute deadline */
++static INT32U CUS_MinAbsDeadline(void)
++{
++    INT32U best = 0xFFFFFFFF;
++    for (int j = 0; j < AperiodicJobNum && j < MAX_APERIODIC_JOBS; j++) {
++        if (CUS_Accepted[j] && !CUS_Finished[j]) {
++            if (AperiodicJobs[j].abs_deadline < best)
++                best = AperiodicJobs[j].abs_deadline;
++        }
++    }
++    return best;
++}
++
++INT32U CUS_NewServerDeadline(INT32U now, INT32U rem_total)
++{
++    if (ServerSize == 0) {
++        return now + rem_total;
++    }
++    INT32U num = (INT32U)rem_total * 100ULL;
++    INT32U delta = (INT32U)(num / (INT32U)ServerSize);
++    return now + delta;
++}
++
++/* 從 backlog 中選要服務的 aperiodic job：用最早 abs deadline 當 tie-break */
++static INT16S CUS_PickJob(void)
++{
++    INT16S best_idx = -1;
++    INT32U best_dl = 0xFFFFFFFF;
++
++    for (int j = 0; j < AperiodicJobNum && j < MAX_APERIODIC_JOBS; j++) {
++        if (CUS_Accepted[j] && !CUS_Finished[j] && CUS_RemExec[j] > 0) {
++            if (AperiodicJobs[j].abs_deadline < best_dl) {
++                best_dl = AperiodicJobs[j].abs_deadline;
++                best_idx = (INT16S)j;
++            }
++        }
++    }
++    return best_idx;
++}
++
++// 等待中的 job：還沒被 CUS 接受 (Accepted=0)、也沒被丟掉 (Finished=0)
++static INT16S CUS_PickWaitingJob(void)
++{
++    INT32U best_dl = 0xFFFFFFFF;
++    INT16S best_j = -1;
++
++    for (int j = 0; j < AperiodicJobNum && j < MAX_APERIODIC_JOBS; j++) {
++        if (!CUS_Finished[j] && !CUS_Accepted[j] && AperiodicJobs[j].arrive <= g_now) {
++            if (AperiodicJobs[j].abs_deadline < best_dl) {
++                best_dl = AperiodicJobs[j].abs_deadline;
++                best_j = j;
++            }
++        }
++    }
++    return best_j;
++}
++
+ /*
+ *********************************************************************************************************
+ *                                           LOCAL CONSTANTS
+@@ -256,10 +569,537 @@ void  App_TCBInitHook (OS_TCB *ptcb)
+ 
+ #if OS_TIME_TICK_HOOK_EN > 0
+ void  App_TimeTickHook (void)
+-{
++{   
+ #if (APP_CFG_PROBE_OS_PLUGIN_EN == DEF_ENABLED) && (OS_PROBE_HOOKS_EN > 0)
+     OSProbe_TickHook();
+ #endif
++    static task_para_set* prev_win = NULL;  // 記錄上一個 tick 的 winner，用來判斷 Preemption
++
++    if (g_halt_after_miss) return;  // 一旦有過 MissDeadline，就永久停排程
++
++    g_now = OSTimeGet();
++
++#if (ALGORITHM == EDF)
++    INT8U cus_enabled = (ServerID > 0 && ServerSize > 0 && AperiodicJobNum > 0);
++#else
++    INT8U cus_enabled = 0;
++#endif
++
++#if (ALGORITHM == EDF)
++    if (cus_enabled) {
++        CUS_InitIfNeeded();
++        /* 先印「上一個 tick」結束的 aperiodic job */
++        if (CUS_LastJobDone >= 0) {
++            INT16S j = CUS_LastJobDone;
++            printf("%3d\tAperiodic job (%3d) is finished.\n",
++                g_now, AperiodicJobs[j].job_no);
++            if ((Output_err = fopen_s(&Output_fp, "./Output.txt", "a")) == 0) {
++                fprintf(Output_fp, "%3d\tAperiodic job (%3d) is finished.\n",
++                    g_now, AperiodicJobs[j].job_no);
++                fclose(Output_fp);
++            }
++            CUS_LastJobDone = -1;
++        }
++    }
++#endif
++
++    for (int i = 0; i < TASK_NUMBER; i++)
++        TaskParameter[i].arrive_now = 0;
++
++    for (int i = 0; i < TASK_NUMBER; i++) {
++        task_para_set* tp = &TaskParameter[i];
++#if (ALGORITHM == EDF)
++        // CUS server 的抵達由 CUS 控制，不能用一般 periodic 的 next_release 邏輯
++        if (ServerID > 0 && tp->TaskID == ServerID) {
++            continue;
++        }
++#endif
++        if (g_now == tp->next_release) {
++			tp->arrive_now = 1;    // 標記本 tick 有新 job 抵達      
++			tp->next_release += tp->TaskPeriodic;   // 更新下一次抵達時間
++        }
++    }
++
++    /* ---------- CUS：處理 aperiodic job 抵達 ---------- */
++#if (ALGORITHM == EDF)
++    if (cus_enabled) {
++        for (int j = 0; j < AperiodicJobNum && j < MAX_APERIODIC_JOBS; j++) {
++
++            if (CUS_Finished[j]) continue;
++            if (AperiodicJobs[j].arrive != g_now) continue;
++
++            if (CUS_Backlogged && g_now < CUS_ServerDeadline) {
++                printf("%3lu\tAperiodic job (%d) arrives. Do nothing.\n",
++                    (unsigned long)g_now, AperiodicJobs[j].job_no);
++                if ((Output_err = fopen_s(&Output_fp, "./Output.txt", "a")) == 0) {
++                    fprintf(Output_fp, "%3lu\tAperiodic job (%d) arrives. Do nothing.\n",
++                        (unsigned long)g_now, AperiodicJobs[j].job_no);
++                    fclose(Output_fp);
++                }
++                continue;
++            }
++
++            /* 需要計算新的 server deadline */
++            INT32U rem_exist = CUS_TotalRemExec();
++            INT32U rem_total = rem_exist + CUS_RemExec[j];
++            INT32U new_dl = CUS_NewServerDeadline(g_now, rem_total);
++
++            if (AperiodicJobs[j].abs_deadline >= new_dl) {
++                CUS_Accepted[j] = 1;
++                if (!CUS_ServerHasJob) {
++                    CUS_ServerHasJob = 1;
++                    CUS_ServerFirstArrive = AperiodicJobs[j].arrive;
++                    CUS_ServerExecSum = AperiodicJobs[j].exec;
++                }
++                else {
++                    if (AperiodicJobs[j].arrive < CUS_ServerFirstArrive)
++                        CUS_ServerFirstArrive = AperiodicJobs[j].arrive;
++                    CUS_ServerExecSum += AperiodicJobs[j].exec;
++                }
++                CUS_Backlogged = 1;
++                CUS_ServerDeadline = new_dl;
++                if (rem_exist == 0 && CUS_ServerIdx >= 0) {
++                    task_para_set* sp = &TaskParameter[CUS_ServerIdx];
++
++                    sp->active = 1;       // 讓它進 EDF ready set
++                    sp->release = g_now;   // server job 的釋出時間 = 現在
++                    sp->preempt_wait = 0;
++                    sp->deadline = new_dl;  // 先設成這次算出的 deadline
++                    sp->rem = 0x3fffffff;
++                }
++
++                if (CUS_ServerIdx >= 0) {
++                    TaskParameter[CUS_ServerIdx].deadline = CUS_ServerDeadline;
++                }
++
++                printf("%3lu\tAperiodic job (%d) arrives and sets CUS's deadline as %lu\n",
++                    (unsigned long)g_now, AperiodicJobs[j].job_no,
++                    (unsigned long)new_dl);
++                if ((Output_err = fopen_s(&Output_fp, "./Output.txt", "a")) == 0) {
++                    fprintf(Output_fp, "%3lu\tAperiodic job (%d) arrives and sets CUS's deadline as %lu\n",
++                        (unsigned long)g_now, AperiodicJobs[j].job_no,
++                        (unsigned long)new_dl);
++                    fclose(Output_fp);
++                }
++            }
++            else {
++                /* reject scheduling */
++                CUS_Finished[j] = 1;
++                printf("%3lu\tAperiodic job (%d) rejects scheduling\n",
++                    (unsigned long)g_now, AperiodicJobs[j].job_no);
++                if ((Output_err = fopen_s(&Output_fp, "./Output.txt", "a")) == 0) {
++                    fprintf(Output_fp, "%3lu\tAperiodic job (%d) rejects scheduling\n",
++                        (unsigned long)g_now, AperiodicJobs[j].job_no);
++                    fclose(Output_fp);
++                }
++            }
++        }
++
++        /* 若到了 server deadline 且仍有 backlog，要重新計算 deadline（CUS 步驟） */
++        if (g_now == CUS_ServerDeadline) {
++
++            INT32U rem_total = CUS_TotalRemExec();
++
++            if (rem_total == 0) {
++                INT16S jj = CUS_PickWaitingJob();
++                if (jj >= 0) {
++                    INT32U exec = AperiodicJobs[jj].exec;
++                    INT32U new_dl = CUS_NewServerDeadline(g_now, exec);
++
++                    if (AperiodicJobs[jj].abs_deadline >= new_dl) {
++                        CUS_Accepted[jj] = 1;
++                        if (!CUS_ServerHasJob) {
++                            CUS_ServerHasJob = 1;
++                            CUS_ServerFirstArrive = AperiodicJobs[jj].arrive;
++                            CUS_ServerExecSum = AperiodicJobs[jj].exec;
++                        }
++                        else {
++                            if (AperiodicJobs[jj].arrive < CUS_ServerFirstArrive)
++                                CUS_ServerFirstArrive = AperiodicJobs[jj].arrive;
++                            CUS_ServerExecSum += AperiodicJobs[jj].exec;
++                        }
++                        CUS_Backlogged = 1;
++                        CUS_ServerDeadline = new_dl;
++
++                        if (CUS_ServerIdx >= 0) {
++                            task_para_set* sp = &TaskParameter[CUS_ServerIdx];
++                            sp->active = 1;
++                            sp->deadline = new_dl;
++                            sp->rem = 0x3fffffff;
++                        }
++
++                        printf("%3lu\tAperiodic job (%d) sets CUS's deadline as %lu\n",
++                            (unsigned long)g_now, AperiodicJobs[jj].job_no,
++                            (unsigned long)new_dl);
++                        if ((Output_err = fopen_s(&Output_fp, "./Output.txt", "a")) == 0) {
++                            fprintf(Output_fp, "%3lu\tAperiodic job (%d) sets CUS's deadline as %lu\n",
++                                (unsigned long)g_now, AperiodicJobs[jj].job_no,
++                                (unsigned long)new_dl);
++                            fclose(Output_fp);
++                        }
++                    }
++                    else {
++                        // 到了 deadline 也塞不進去 → 直接丟掉
++                        CUS_Finished[jj] = 1;
++                        printf("%3lu\tAperiodic job (%d) rejects scheduling\n",
++                            (unsigned long)g_now, AperiodicJobs[jj].job_no);
++                        if ((Output_err = fopen_s(&Output_fp, "./Output.txt", "a")) == 0) {
++                            fprintf(Output_fp, "%3lu\tAperiodic job (%d) rejects scheduling\n",
++                                (unsigned long)g_now, AperiodicJobs[jj].job_no);
++                            fclose(Output_fp);
++                        }
++                    }
++                }
++                else {
++                    CUS_Backlogged = 0;
++                }
++            }
++            else {
++                /* rem_total > 0：你原本那段「仍有 backlog 時重算 deadline / 或 reject」的邏輯保留 */
++                INT32U min_abs = CUS_MinAbsDeadline();
++                INT32U new_dl = CUS_NewServerDeadline(g_now, rem_total);
++
++                if (min_abs >= new_dl) {
++                    CUS_ServerDeadline = new_dl;
++                    if (CUS_ServerIdx >= 0)
++                        TaskParameter[CUS_ServerIdx].deadline = CUS_ServerDeadline;
++
++                    INT16S jj = CUS_PickJob();
++                    int jobno = (jj >= 0) ? AperiodicJobs[jj].job_no : -1;
++
++                    printf("%3lu\tAperiodic job (%d) sets CUS's deadline as %lu\n",
++                        (unsigned long)g_now, jobno, (unsigned long)new_dl);
++                    if ((Output_err = fopen_s(&Output_fp, "./Output.txt", "a")) == 0) {
++                        fprintf(Output_fp, "%3lu\tAperiodic job (%d) sets CUS's deadline as %lu\n",
++                            (unsigned long)g_now, jobno, (unsigned long)new_dl);
++                        fclose(Output_fp);
++                    }
++                }
++                else {
++                    for (int j = 0; j < AperiodicJobNum && j < MAX_APERIODIC_JOBS; j++) {
++                        if (CUS_Accepted[j] && !CUS_Finished[j]) {
++                            CUS_Finished[j] = 1;
++                            printf("%3lu\tAperiodic job (%d) rejects scheduling\n",
++                                (unsigned long)g_now, AperiodicJobs[j].job_no);
++                            if ((Output_err = fopen_s(&Output_fp, "./Output.txt", "a")) == 0) {
++                                fprintf(Output_fp, "%3lu\tAperiodic job (%d) rejects scheduling\n",
++                                    (unsigned long)g_now, AperiodicJobs[j].job_no);
++                                fclose(Output_fp);
++                            }
++                        }
++                    }
++                    CUS_Backlogged = 0;
++                }
++            }
++        }
++    }
++#endif
++
++    // MissDeadline
++    for (int i = 0; i < TASK_NUMBER; i++) {
++        task_para_set* tp = &TaskParameter[i];
++#if (ALGORITHM == EDF)
++        if (ServerID > 0 && tp->TaskID == ServerID) {
++            continue;
++        }
++#endif
++        if (tp->active && tp->rem > 0 && g_now == tp->deadline) {
++            printf("%3d\tMissDeadline  task(%3d)(%3d)\t------------------\n",g_now, tp->TaskID, tp->k);
++            if ((Output_err = fopen_s(&Output_fp, "./Output.txt", "a")) == 0)
++            {
++                fprintf(Output_fp, "%3d\tMissDeadline  task(%3d)(%3d)\t------------------\n", g_now, tp->TaskID, tp->k);
++                fclose(Output_fp);
++            }
++            tp->active = 0;
++            tp->rem = 0;
++            tp->just_finished = 0;
++            tp->preempt_wait = 0;
++            tp->k++;
++            g_halt_after_miss = 1;
++            return;
++        }
++    }
++
++    // Completion
++    for (int i = 0; i < TASK_NUMBER; i++) {
++        task_para_set* tp = &TaskParameter[i];
++        if (!tp->just_finished) continue;
++
++		tp->just_finished = 0;  // 重置旗標
++		tp->active = 0;   // 舊 job 移出 ready
++
++        task_para_set* nxt = pick_ready_or_arrival();
++
++        INT32U resp = g_now - tp->release;   // 完成時間 - 釋出時間 
++        INT32U pree = tp->preempt_wait;    // 被高優先搶占的累積 tick
++		INT32U osdly = (resp >= tp->TaskPeriodic) ? 0 : (tp->TaskPeriodic - resp);  // Deadline - 完成時間
++
++        char cur[24];
++        INT32U cur_k = tp->k;
++        snprintf(cur, sizeof(cur), "task(%3d)(%3d)",tp->TaskID, tp->k);
++
++        char nextbuf[24];
++        if (nxt) {
++            INT32U next_k = nxt->k;
++            if (nxt == tp) {
++                next_k = tp->k + 1;
++            }
++            snprintf(nextbuf, sizeof(nextbuf), "task(%3d)(%3d)",nxt->TaskID, next_k);
++        }
++        else {
++            snprintf(nextbuf, sizeof(nextbuf), "task(%3d)", 63);
++        }
++
++        printf("%3d\t%-10s    %-14s\t%-14s\t\t%lu%15lu%15lu\n", g_now, "Completion", cur, nextbuf, resp, pree, osdly);
++        if ((Output_err = fopen_s(&Output_fp, "./Output.txt", "a")) == 0)
++        {
++            fprintf(Output_fp, "%3d\t%-10s    %-14s\t%-14s\t\t%lu%15lu%15lu\n", g_now, "Completion", cur, nextbuf, resp, pree, osdly);
++            fclose(Output_fp);
++        }
++
++        tp->preempt_wait = 0;   
++		tp->k++;  // job 計數++
++    }
++#if (ALGORITHM == EDF)
++    // ---------- 在這裡處理 CUS server 的 Completion ----------
++    if (cus_enabled && CUS_ServerJustDone && CUS_ServerIdx >= 0) {
++        task_para_set* sp = &TaskParameter[CUS_ServerIdx];
++
++        sp->active = 0;
++        sp->rem = 0;
++
++        INT32U resp, pree;
++
++        if (CUS_ServerHasJob) {
++            resp = g_now - CUS_ServerFirstArrive;
++            if (CUS_ServerExecSum <= resp)
++                pree = resp - CUS_ServerExecSum;
++            else
++                pree = 0;
++        }
++        else {
++            resp = g_now - sp->release;
++            pree = sp->preempt_wait;
++        }
++        task_para_set* nxt = pick_ready_or_arrival();
++
++        char cur[24], nextbuf[24];
++        snprintf(cur, sizeof(cur), "task(%3d)(%3d)", sp->TaskID, sp->k);
++
++        if (nxt) {
++            snprintf(nextbuf, sizeof(nextbuf), "task(%3d)(%3d)",
++                nxt->TaskID, nxt->k);
++        }
++        else {
++            snprintf(nextbuf, sizeof(nextbuf), "task(%3d)", 63);
++        }
++
++        printf("%3d\t%-10s    %-14s\t%-14s\t\t%lu%15lu%15s\n",
++            g_now, "Completion", cur, nextbuf, resp, pree, "N/A");
++        if ((Output_err = fopen_s(&Output_fp, "./Output.txt", "a")) == 0) {
++            fprintf(Output_fp, "%3d\t%-10s    %-14s\t%-14s\t\t%lu%15lu%15s\n",
++                g_now, "Completion", cur, nextbuf, resp, pree, "N/A");
++            fclose(Output_fp);
++        }
++
++        sp->preempt_wait = 0;
++        sp->k++;
++
++        CUS_ServerJustDone = 0;
++        CUS_ServerHasJob = 0;
++        CUS_ServerExecSum = 0;
++        CUS_ServerFirstArrive = 0;
++    }
++#endif
++
++    //挑本 tick 的贏家
++    task_para_set* win = NULL;
++
++#if (ALGORITHM == RM)
++    win = pick_ready_or_arrival();
++
++#elif (ALGORITHM == FIFO)
++    if (prev_win && (prev_win->rem > 0)) {
++        win = prev_win;
++    }
++    else {
++        win = pick_ready_or_arrival();
++    }
++#elif (ALGORITHM == EDF)
++    win = pick_ready_or_arrival();
++#endif
++
++    if (win && win->arrive_now) {
++        win->arrive_now = 0;
++        win->active = 1;
++        win->release = g_now;
++        win->rem = win->TaskExecutionTIme;
++        win->preempt_wait = 0;
++#if (ALGORITHM == EDF)
++        if (cus_enabled && CUS_ServerIdx >= 0 && win->TaskID == ServerID && CUS_Backlogged) {
++            win->deadline = CUS_ServerDeadline;
++        }
++        else
++#endif
++        {
++            win->deadline = g_now + win->TaskPeriodic;
++        }
++    }
++
++    // 其他剛到達者也設成 ready（但本 tick 不拿 token）
++    for (int i = 0; i < TASK_NUMBER; i++) {
++        task_para_set* tp = &TaskParameter[i];
++        if (tp->arrive_now) {
++            tp->arrive_now = 0;
++            tp->active = 1;
++            tp->release = g_now;
++            tp->rem = tp->TaskExecutionTIme;
++            tp->preempt_wait = 0;
++#if (ALGORITHM == EDF)
++            if (cus_enabled && CUS_ServerIdx >= 0 && tp->TaskID == ServerID && CUS_Backlogged) {
++                tp->deadline = CUS_ServerDeadline;
++            }
++            else
++#endif
++            {
++                tp->deadline = g_now + tp->TaskPeriodic;
++            }
++        }
++    }
++    if (win == NULL) {  
++        win = pick_ready_or_arrival();
++    }
++
++    // 其餘 ready 的 preempt_wait 累加
++    for (int i = 0; i < TASK_NUMBER; i++) {
++        task_para_set* tp = &TaskParameter[i];
++        if (tp->active && tp->rem > 0 && tp != win) tp->preempt_wait++;
++    }
++
++    // Preemption
++    if (win) {
++        if (prev_win) {
++            INT8U higher = 0;
++
++#if (ALGORITHM == RM) || (ALGORITHM == FIFO)
++            // RM / FIFO：用 TaskPriority 判斷「優先級有沒有變高」
++            if (win->TaskPriority < prev_win->TaskPriority) {
++                higher = 1;
++            }
++#elif (ALGORITHM == EDF)
++            INT32U win_dead = win->deadline;
++            INT32U prev_dead = prev_win->deadline;
++
++            if (win_dead < prev_dead || (win_dead == prev_dead && win->TaskID < prev_win->TaskID)) {
++                higher = 1;
++            }
++#endif
++            // 任務 -> 任務
++            if (win != prev_win && higher && prev_win->rem > 0 && prev_win->active && prev_win->release < g_now) {
++                char frombuf[24], tobuf[24];
++                snprintf(frombuf, sizeof(frombuf), "task(%3d)(%3d)", prev_win->TaskID, prev_win->k);
++                snprintf(tobuf, sizeof(tobuf), "task(%3d)(%3d)", win->TaskID, win->k);
++
++                printf("%3d\t%-10s    %-14s\t%-14s\n", g_now, "Preemption", frombuf, tobuf);
++                if ((Output_err = fopen_s(&Output_fp, "./Output.txt", "a")) == 0)
++                {
++                    fprintf(Output_fp, "%3d\t%-10s    %-14s\t%-14s\n", g_now, "Preemption", frombuf, tobuf);
++                    fclose(Output_fp);
++                }
++            }
++        }
++        else {
++            // Idle -> 任務
++            if (g_now > 0) {
++                char tobuf[24];
++                snprintf(tobuf, sizeof(tobuf), "task(%3d)(%3d)", win->TaskID, win->k);
++
++                printf("%3d\t%-10s    %-14s\t%-14s\n", g_now, "Preemption", "task( 63)", tobuf);
++                if ((Output_err = fopen_s(&Output_fp, "./Output.txt", "a")) == 0)
++                {
++                    fprintf(Output_fp, "%3d\t%-10s    %-14s\t%-14s\n", g_now, "Preemption", "task( 63)", tobuf);
++                    fclose(Output_fp);
++                }
++            }
++        }
++#if (ALGORITHM == EDF)
++        if (cus_enabled && CUS_ServerIdx >= 0 && CUS_ServerResp > 0) {
++            task_para_set* sp = &TaskParameter[CUS_ServerIdx];
++
++            // 用現在的 winner 當作下一個 task（跟助教的 log 一樣）
++            task_para_set* nxt = win;
++
++            char cur[24], nextbuf[24];
++            snprintf(cur, sizeof(cur), "task(%3d)(%3d)", sp->TaskID, sp->k - 1); // 剛結束的是上一個 k
++
++            if (nxt)
++                snprintf(nextbuf, sizeof(nextbuf), "task(%3d)(%3d)", nxt->TaskID, nxt->k);
++            else
++                snprintf(nextbuf, sizeof(nextbuf), "task(%3d)", 63);
++
++            printf("%3d\t%-10s    %-14s\t%-14s\t\t%lu%15lu%15s\n",
++                g_now, "Completion", cur, nextbuf,
++                CUS_ServerResp, CUS_ServerPree, "N/A");
++            if ((Output_err = fopen_s(&Output_fp, "./Output.txt", "a")) == 0) {
++                fprintf(Output_fp, "%3d\t%-10s    %-14s\t%-14s\t\t%lu%15lu%15s\n",
++                    g_now, "Completion", cur, nextbuf,
++                    CUS_ServerResp, CUS_ServerPree, "N/A");
++                fclose(Output_fp);
++            }
++
++            // 用完清掉，避免下個 tick 又印一次
++            CUS_ServerResp = 0;
++            CUS_ServerPree = 0;
++        }
++#endif
++        /* ---------- Running 印出（這裡加上 CUS 在 server 時服務 job） ---------- */
++
++#if (ALGORITHM == EDF)
++        if (cus_enabled && CUS_ServerIdx >= 0 && win->TaskID == ServerID && CUS_Backlogged) {
++            INT16S jj = CUS_PickJob();
++            if (jj >= 0) {
++                CUS_RemExec[jj]--;
++                printf("%3d\tAperiodic job (%d) is running\n",
++                    g_now, AperiodicJobs[jj].job_no);
++                if ((Output_err = fopen_s(&Output_fp, "./Output.txt", "a")) == 0) {
++                    fprintf(Output_fp, "%3d\tAperiodic job (%d) is running\n",
++                        g_now, AperiodicJobs[jj].job_no);
++                    fclose(Output_fp);
++                }
++
++                if (CUS_RemExec[jj] == 0) {
++                    CUS_Finished[jj] = 1;
++                    CUS_LastJobDone = jj;
++
++                    // 如果所有 aperiodic job 都做完 → 下一個 tick 印 server Completion
++                    if (CUS_TotalRemExec() == 0) {
++                        CUS_Backlogged = 0;
++                        CUS_ServerJustDone = 1;
++                    }
++                }
++            }
++        }
++        else {
++            printf("%3d\tTask (%3d) is running\n", g_now, win->TaskID);
++            if ((Output_err = fopen_s(&Output_fp, "./Output.txt", "a")) == 0) {
++                fprintf(Output_fp, "%3d\tTask (%3d) is running\n", g_now, win->TaskID);
++                fclose(Output_fp);
++            }
++        }
++#else
++        printf("%3d\tTask (%3d) is running\n", g_now, win->TaskID);
++        if ((Output_err = fopen_s(&Output_fp, "./Output.txt", "a")) == 0) {
++            fprintf(Output_fp, "%3d\tTask (%3d) is running\n", g_now, win->TaskID);
++            fclose(Output_fp);
++        }
++#endif
++    }
++    // 發一顆 token
++    if (win && win->run_sem) {
++        OSSemPost(win->run_sem);
++    }
++
++    prev_win = win;  // 記住本 tick 的 winner
+ }
+ #endif
+ #endif
+diff --git a/Microsoft/Windows/Kernel/OS2/main.c b/Microsoft/Windows/Kernel/OS2/main.c
+index 495aede..5fffe06 100644
+--- a/Microsoft/Windows/Kernel/OS2/main.c
++++ b/Microsoft/Windows/Kernel/OS2/main.c
+@@ -39,6 +39,7 @@
+ #include  <os.h>
+ 
+ #include  "app_cfg.h"
++#define TASK_STACKSIZE 2048
+ 
+ 
+ /*
+@@ -81,6 +82,46 @@ static  void  StartupTask (void  *p_arg);
+ *********************************************************************************************************
+ */
+ 
++static void task1(void* p_arg);
++static void task2(void* p_arg);
++static void task(void* p_arg);
++/*
++void task1(void* p_arg) {
++    task_para_set* task_data;
++    task_data = p_arg;
++
++    while (1) {
++        printf("Tick: %d, Hello from task%d\n", OSTime, task_data->TaskID);
++        OSTimeDly(task_data->TaskPeriodic);
++    }
++}
++
++void task2(void* p_arg) {
++    task_para_set* task_data;
++    task_data = p_arg;
++
++    while (1) {
++        printf("Tick: %d, Hello from task%d\n", OSTime, task_data->TaskID);
++        OSTimeDly(task_data->TaskPeriodic);
++    }
++}
++*/
++void task(void* p_arg) {
++    task_para_set* task_data;
++    task_data = p_arg;
++    INT8U err;
++
++    for (;;) {
++        OSSemPend(task_data->run_sem, 0, &err);
++
++        if (task_data->active && task_data->rem > 0) {
++            task_data->rem--;
++            if (task_data->rem == 0)
++                task_data->just_finished = 1;
++        }
++    }
++}
++
+ int  main (void)
+ {
+ #if OS_TASK_NAME_EN > 0u
+@@ -96,21 +137,87 @@ int  main (void)
+ 
+     OSInit();                                                   /* Initialize uC/OS-II                                  */
+ 
+-    OSTaskCreateExt( StartupTask,                               /* Create the startup task                              */
+-                     0,
+-                    &StartupTaskStk[APP_CFG_STARTUP_TASK_STK_SIZE - 1u],
+-                     APP_CFG_STARTUP_TASK_PRIO,
+-                     APP_CFG_STARTUP_TASK_PRIO,
+-                    &StartupTaskStk[0u],
+-                     APP_CFG_STARTUP_TASK_STK_SIZE,
+-                     0u,
+-                    (OS_TASK_OPT_STK_CHK | OS_TASK_OPT_STK_CLR));
+ 
++    OutFileInit();
++    InputFile();
++    InputAperiodicJobs();
++
++    for (int n = 0; n < TASK_NUMBER; n++) {
++        TaskParameter[n].TaskPriority = TaskParameter[n].TaskPeriodic;
++        TaskParameter[n].release = 0;
++        TaskParameter[n].next_release = TaskParameter[n].TaskArriveTime;
++        TaskParameter[n].deadline = 0;
++        TaskParameter[n].rem = 0;
++        TaskParameter[n].k = 0;
++        TaskParameter[n].preempt_wait = 0;
++        TaskParameter[n].active = 0;
++        TaskParameter[n].just_finished = 0;
++        TaskParameter[n].run_sem = OSSemCreate(0);
++    }
++
++    Task_STK = malloc(TASK_NUMBER * sizeof(int*));
++
++
++    for (int n = 0; n < TASK_NUMBER; n++) {
++        Task_STK[n] = malloc(TASK_STACKSIZE * sizeof(int));
++    }
++    
++    for (int n = 0; n < TASK_NUMBER; n++) {
++        OSTaskCreateExt(task,
++            &TaskParameter[n],
++            &Task_STK[n][TASK_STACKSIZE - 1],
++            TaskParameter[n].TaskPriority,
++            TaskParameter[n].TaskID,
++            &Task_STK[n][0],
++            TASK_STACKSIZE,
++            &TaskParameter[n],
++            (OS_TASK_OPT_STK_CHK | OS_TASK_OPT_STK_CLR));
++    }
++    OS_TCB* p = OSTCBList;
++    printf("=============TCB linked list=============\n");
++    printf("Task    Prev_TCB_addr    TCB_addr    Next_TCB_addr\n");
++    while (p) {
++        INT16U id;
++        if(p->OSTCBPrio == OS_LOWEST_PRIO)
++            id = OS_LOWEST_PRIO;
++        else
++			id = p->OSTCBId;
++        printf("%4u    %13p    %8p    %13p\n", id, p->OSTCBPrev, p, p->OSTCBNext);
++        p = p->OSTCBNext;
++    }
++
++ /*   OSTaskCreateExt(task1,
++        &TaskParameter[0],
++        &Task_STK[0][TASK_STACKSIZE - 1],
++        TaskParameter[0].TaskPeriodic,
++        TaskParameter[0].TaskID,
++        &Task_STK[0][0],
++        TASK_STACKSIZE,
++        &TaskParameter[0],
++        (OS_TASK_OPT_STK_CHK | OS_TASK_OPT_STK_CLR));
++
++    OSTaskCreateExt(task2,
++        &TaskParameter[1],
++        &Task_STK[1][TASK_STACKSIZE - 1],
++        TaskParameter[1].TaskPeriodic,
++        TaskParameter[1].TaskID,
++        &Task_STK[1][0],
++        TASK_STACKSIZE,
++        &TaskParameter[1],
++        (OS_TASK_OPT_STK_CHK | OS_TASK_OPT_STK_CLR));
++*/
+ #if OS_TASK_NAME_EN > 0u
+     OSTaskNameSet(         APP_CFG_STARTUP_TASK_PRIO,
+                   (INT8U *)"Startup Task",
+                            &os_err);
+ #endif
++    OSTimeSet(0);
++    /*printf("%-4d\t**************  task(%3d)(%3d)   \t%d\r\n", OSTime, TaskParameter[0].TaskID, TaskParameter[0].TaskNumber, OSCtxSwCtr);
++    if ((Output_err = fopen_s(&Output_fp, "./Output.txt", "a")) == 0)
++    {
++        fprintf(Output_fp, "%-4d\t**************  task(%3d)(%3d)   \t%d\r\n", OSTime, TaskParameter[0].TaskID, TaskParameter[0].TaskNumber, OSCtxSwCtr);
++        fclose(Output_fp);
++    }*/
+     OSStart();                                                  /* Start multitasking (i.e. give control to uC/OS-II)   */
+ 
+     while (DEF_ON) {                                            /* Should Never Get Here.                               */
+diff --git a/Microsoft/Windows/Kernel/OS2/os_cfg.h b/Microsoft/Windows/Kernel/OS2/os_cfg.h
+index 0175f40..89a78e2 100644
+--- a/Microsoft/Windows/Kernel/OS2/os_cfg.h
++++ b/Microsoft/Windows/Kernel/OS2/os_cfg.h
+@@ -48,7 +48,7 @@
+ #define OS_SCHED_LOCK_EN          1u   /* Include code for OSSchedLock() and OSSchedUnlock()           */
+ 
+ #define OS_TICK_STEP_EN           1u   /* Enable tick stepping feature for uC/OS-View                  */
+-#define OS_TICKS_PER_SEC        100u   /* Set the number of ticks in one second                        */
++#define OS_TICKS_PER_SEC          1u   /* Set the number of ticks in one second                        */
+ 
+ #define OS_TLS_TBL_SIZE           0u   /* Size of Thread-Local Storage Table                           */
+ 
+@@ -68,7 +68,7 @@
+ #define OS_TASK_PROFILE_EN        1u   /*     Include variables in OS_TCB for profiling                */
+ #define OS_TASK_QUERY_EN          1u   /*     Include code for OSTaskQuery()                           */
+ #define OS_TASK_REG_TBL_SIZE      1u   /*     Size of task variables array (#of INT32U entries)        */
+-#define OS_TASK_STAT_EN           1u   /*     Enable (1) or Disable(0) the statistics task             */
++#define OS_TASK_STAT_EN           0u   /*     Enable (1) or Disable(0) the statistics task             */
+ #define OS_TASK_STAT_STK_CHK_EN   1u   /*     Check task stacks from statistic task                    */
+ #define OS_TASK_SUSPEND_EN        1u   /*     Include code for OSTaskSuspend() and OSTaskResume()      */
+ #define OS_TASK_SW_HOOK_EN        1u   /*     Include code for OSTaskSwHook()                          */
+@@ -136,7 +136,7 @@
+ 
+ 
+                                        /* --------------------- TIMER MANAGEMENT --------------------- */
+-#define OS_TMR_EN                 1u   /* Enable (1) or Disable (0) code generation for TIMERS         */
++#define OS_TMR_EN                 0u   /* Enable (1) or Disable (0) code generation for TIMERS         */
+ #define OS_TMR_CFG_MAX           16u   /*     Maximum number of timers                                 */
+ #define OS_TMR_CFG_NAME_EN        1u   /*     Determine timer names                                    */
+ #define OS_TMR_CFG_WHEEL_SIZE     7u   /*     Size of timer wheel (#Spokes)                            */
+@@ -148,4 +148,4 @@
+ #define OS_TRACE_API_ENTER_EN     0u   /* Enable (1) or Disable (0) uC/OS-II Trace API enter instrum.  */
+ #define OS_TRACE_API_EXIT_EN      0u   /* Enable (1) or Disable (0) uC/OS-II Trace API exit  instrum.  */
+ 
+-#endif
++#endif
+\ No newline at end of file

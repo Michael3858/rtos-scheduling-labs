@@ -1,0 +1,301 @@
+{
+  "baseline": "Micrium_Win32_Kernel (course-provided Win32 template)",
+  "files": [
+    {
+      "path": "Micrium/Software/uC-CPU/Win32/Visual_Studio/cpu.h",
+      "sha256": "6807b9a7d39edacad4790509abb0ed2b15cf4e13e89b591ea3d8060abf953d08"
+    },
+    {
+      "path": "Micrium/Software/uC-CPU/Win32/Visual_Studio/cpu_c.c",
+      "sha256": "8473566e2c7fbd95ba2f6cb7d01c2675214d5fd85bfdebc5fb5ccea2918a5e2e"
+    },
+    {
+      "path": "Micrium/Software/uC-CPU/cpu_cache.h",
+      "sha256": "cdb927ea5c9cabcbb717d704de32f9e9a9eaa8454382b7ffcc1c6d6bc736caf3"
+    },
+    {
+      "path": "Micrium/Software/uC-CPU/cpu_core.c",
+      "sha256": "1a938c15932b5e31461d90cfb2c9164d7605d64e8e689da362df0af697ae2d7b"
+    },
+    {
+      "path": "Micrium/Software/uC-CPU/cpu_core.h",
+      "sha256": "607b8efc4f747994863ef376a421b76e43172c2b8be9b869cbd402ec28613fa6"
+    },
+    {
+      "path": "Micrium/Software/uC-CPU/cpu_def.h",
+      "sha256": "8da9eb0a98aa7257e08549f44945d1b973fc12aeb21477e1f4c15d9a8f84cf9c"
+    },
+    {
+      "path": "Micrium/Software/uC-LIB/lib_ascii.c",
+      "sha256": "8b042fa71b4e28643e489e0d70263e6eec9f95919d429adf966920c83182c38f"
+    },
+    {
+      "path": "Micrium/Software/uC-LIB/lib_ascii.h",
+      "sha256": "2d0a6e7131599393027365298ae2d280d35b3fc78f49305d55f2a89bb59296b9"
+    },
+    {
+      "path": "Micrium/Software/uC-LIB/lib_def.h",
+      "sha256": "6b4725c0f2c5a2a6476bad0b407485b0be06dd049262c39a303c2337f59fd5e0"
+    },
+    {
+      "path": "Micrium/Software/uC-LIB/lib_math.c",
+      "sha256": "bc6138062a4fce30d10fb89dc81dc8d0d7dfe2cedbcb443e6782a0037857d64d"
+    },
+    {
+      "path": "Micrium/Software/uC-LIB/lib_math.h",
+      "sha256": "d1a729c37ad0f775f0e60e178b8b586029eef35f63e568d03375ac12d133c7f2"
+    },
+    {
+      "path": "Micrium/Software/uC-LIB/lib_mem.c",
+      "sha256": "4813e88174a9556e3b3dff0394f168567689a9df55ea80bff70fd3b39cf0dd71"
+    },
+    {
+      "path": "Micrium/Software/uC-LIB/lib_mem.h",
+      "sha256": "889c3d2477075b8b914e423bff12fdd18572ecf969a1f840f5c37b61b81f8c05"
+    },
+    {
+      "path": "Micrium/Software/uC-LIB/lib_str.c",
+      "sha256": "87ca54ff4c34b34205f34f2912ff83de1fd2656c516925ea7c4b7399e57fc652"
+    },
+    {
+      "path": "Micrium/Software/uC-LIB/lib_str.h",
+      "sha256": "719976564c6c144721eabbe167b260e7bba24275b6164ada96fd576b30d9607b"
+    },
+    {
+      "path": "Micrium/Software/uCOS-II/Ports/Win32/Visual Studio/os_cpu.h",
+      "sha256": "2bcb2c1ca2385829b964414fccfa7877a30d06ec8f8d6a2d0cdb27b4f32ee3b4"
+    },
+    {
+      "path": "Micrium/Software/uCOS-II/Ports/Win32/Visual Studio/os_cpu_c.c",
+      "sha256": "d94c752fb518cae484a12f1074aa686b4a1d0873bac97cdf4b481906a31ea1d0"
+    },
+    {
+      "path": "Micrium/Software/uCOS-II/Source/os.h",
+      "sha256": "80ae4fef8cd318e64f993333af2c823e1de6bafe8bb64fd8c96679c674f9f243"
+    },
+    {
+      "path": "Micrium/Software/uCOS-II/Source/os_cfg_r.h",
+      "sha256": "b04b3659af1b623c89561858583f00d2246ae1f83438dba71cce8bda81af6a21"
+    },
+    {
+      "path": "Micrium/Software/uCOS-II/Source/os_core.c",
+      "sha256": "6f50e0d5e8bf6d94f546656169a275539a24bf0994e3900ae47d2ac3b9e9970a"
+    },
+    {
+      "path": "Micrium/Software/uCOS-II/Source/os_dbg_r.c",
+      "sha256": "d7a7d02f6118157c233f4d3a131bb1539b3736ea37ebbfdcaba30407a3829535"
+    },
+    {
+      "path": "Micrium/Software/uCOS-II/Source/os_flag.c",
+      "sha256": "4dc615f0362c32989150dae7d0685a82c02dceec02a96693400e9f04058c408c"
+    },
+    {
+      "path": "Micrium/Software/uCOS-II/Source/os_mbox.c",
+      "sha256": "5d2d2963634f5fdc8104e4c0b3d882b8a2b63a68f74880cbbff13b5e18fb62b7"
+    },
+    {
+      "path": "Micrium/Software/uCOS-II/Source/os_mem.c",
+      "sha256": "41d80ffa82a8a203235fe557522937e16f7b5bdca8808e4f8db1f42279290afb"
+    },
+    {
+      "path": "Micrium/Software/uCOS-II/Source/os_mutex.c",
+      "sha256": "bbb9edd2faaf83c4b9c87ba1eb71bcbdba8754b8600982a13dcf6732d5a753e6"
+    },
+    {
+      "path": "Micrium/Software/uCOS-II/Source/os_q.c",
+      "sha256": "9cf36aab1d397b670ca0fd4bec989b55cb91d79128c7e7074dfe1d2272e770df"
+    },
+    {
+      "path": "Micrium/Software/uCOS-II/Source/os_sem.c",
+      "sha256": "f6516a3cda17bf4dabc2963338d433cac7aa9469439402ab47d4939450cd3c3c"
+    },
+    {
+      "path": "Micrium/Software/uCOS-II/Source/os_task.c",
+      "sha256": "4cf74ad651cce6064888a3cce83dbfc3d1858c75f9ad5c305c6e879e103fdc50"
+    },
+    {
+      "path": "Micrium/Software/uCOS-II/Source/os_time.c",
+      "sha256": "c09bbc276fc079ede4a131195e1a1f598c10c9d352d28ad54ed35b4cbd72a607"
+    },
+    {
+      "path": "Micrium/Software/uCOS-II/Source/os_tmr.c",
+      "sha256": "e8bb0cb6b0881ac4ba4dfeeb9c00dfa764bc4d3d47228be1761689656a6ca47c"
+    },
+    {
+      "path": "Micrium/Software/uCOS-II/Source/os_trace.h",
+      "sha256": "8f5631b08d462f9f3d535c595489876976f76515fadc6b1db1de6de631cf9414"
+    },
+    {
+      "path": "Micrium/Software/uCOS-II/Source/ucos_ii.c",
+      "sha256": "114bba0de129c5b915b28b621b6a7db5a904592404d73c2e957d10a7dc819cac"
+    },
+    {
+      "path": "Micrium/Software/uCOS-II/Source/ucos_ii.h",
+      "sha256": "8f7e262985643556ca00b00fd07454efde02bd0f5544e35b33f0cc0519276089"
+    },
+    {
+      "path": "Micrium/Software/uCOS-III/Ports/Win32/Visual_Studio/os_cpu.h",
+      "sha256": "54c1840ca64d9e514c9e795537aefc8750aee4692b4183c2a9a59019e1c2c968"
+    },
+    {
+      "path": "Micrium/Software/uCOS-III/Ports/Win32/Visual_Studio/os_cpu_c.c",
+      "sha256": "b21c4dc5c8861bd66efc6da6fea6d03e63b7cda1d5dcf34792b295a30a515c5c"
+    },
+    {
+      "path": "Micrium/Software/uCOS-III/Source/os.h",
+      "sha256": "b58db1ccc17cf09e5203986e41c93bfac4bde392efb81377972319781b7d4ee5"
+    },
+    {
+      "path": "Micrium/Software/uCOS-III/Source/os_cfg_app.c",
+      "sha256": "79eaa7b870571588ba5cf46c09347de4021bb411b3c399e93d7adc6d5eb9c2d8"
+    },
+    {
+      "path": "Micrium/Software/uCOS-III/Source/os_core.c",
+      "sha256": "e651cb42a72c4aab599db5b68cbd58d68ea57e7df7c0f64cb488624d864fe2bb"
+    },
+    {
+      "path": "Micrium/Software/uCOS-III/Source/os_dbg.c",
+      "sha256": "a6698c9fa2ea0af98d7191f26b4dd688a3e2ed9dc9523e6afaa6802471fc0786"
+    },
+    {
+      "path": "Micrium/Software/uCOS-III/Source/os_flag.c",
+      "sha256": "2cdcd556331d7e94d1ba7b546ed2bffa59c5344a34a2683a3efed9563caa5600"
+    },
+    {
+      "path": "Micrium/Software/uCOS-III/Source/os_mem.c",
+      "sha256": "1d77e02488fed140515a026c6c0a1ce124f91a434a1053652e4286a0f546e4cb"
+    },
+    {
+      "path": "Micrium/Software/uCOS-III/Source/os_mon.c",
+      "sha256": "92911475727a8c89e1cb1430fa235de6e3fc2c00a62cd2ce0e9b7df41565406a"
+    },
+    {
+      "path": "Micrium/Software/uCOS-III/Source/os_msg.c",
+      "sha256": "9c9933618687b714a22f8aefcbac59598d21f6d761d04b80303390b4a5978e81"
+    },
+    {
+      "path": "Micrium/Software/uCOS-III/Source/os_mutex.c",
+      "sha256": "8d56a450ee7b2d481d72634b574f67fe6d0757722d22a562bbbe81e6eaf24d15"
+    },
+    {
+      "path": "Micrium/Software/uCOS-III/Source/os_prio.c",
+      "sha256": "e07e60adb075c63f8ca7ab33bab445b24bae9385dc6fcb9970f020fe83326570"
+    },
+    {
+      "path": "Micrium/Software/uCOS-III/Source/os_q.c",
+      "sha256": "b4ad71c27f3e487923d5811f1ebebfab0ec1c03f4392688003c7f5be78bbf3f8"
+    },
+    {
+      "path": "Micrium/Software/uCOS-III/Source/os_sem.c",
+      "sha256": "d742fa2e3dde29210bbea3fb9985cb5659d300289ed95ffdb63cc237dc76ce0b"
+    },
+    {
+      "path": "Micrium/Software/uCOS-III/Source/os_stat.c",
+      "sha256": "5970cdf2ba918dd8032ca8eff2fca569527b3c9387de353b0d1386c7c6ceb5f8"
+    },
+    {
+      "path": "Micrium/Software/uCOS-III/Source/os_task.c",
+      "sha256": "8b4b9624c43f90b7a06c229082d1a4a279886ade98a67ee0513bbea84bf840d2"
+    },
+    {
+      "path": "Micrium/Software/uCOS-III/Source/os_tick.c",
+      "sha256": "a0ba7d3bbca8d721c7d594d58ff6e3e9c94cd1c1ba2f05da84dbc086198cda5b"
+    },
+    {
+      "path": "Micrium/Software/uCOS-III/Source/os_time.c",
+      "sha256": "9b778c61b07ad72705293e237bc9be734fc84e8378ffd76bfdb42b42fee3aa5e"
+    },
+    {
+      "path": "Micrium/Software/uCOS-III/Source/os_tmr.c",
+      "sha256": "be06d600df31bfdc181fc3dcb626c77a60811a78cd5d4d5205070d04d35a9ae7"
+    },
+    {
+      "path": "Micrium/Software/uCOS-III/Source/os_trace.h",
+      "sha256": "eab5c014ea12639f7cef11377b967f2adaee2547ce35c9fb912a9996aa1a044d"
+    },
+    {
+      "path": "Micrium/Software/uCOS-III/Source/os_type.h",
+      "sha256": "4121fd64556af28ff1d15c956182728c7a27e73a191760aff8e91012f6826c44"
+    },
+    {
+      "path": "Micrium/Software/uCOS-III/Source/os_var.c",
+      "sha256": "de94d592eb486c938cfedafff385e8635a569eaa470a5fc08a6357c2f673142a"
+    },
+    {
+      "path": "Microsoft/BSP/Windows/bsp_cpu.c",
+      "sha256": "eeea830101b589048a84b81800071a9bbe4094242113d600490e5959ca7f35ab"
+    },
+    {
+      "path": "Microsoft/Windows/Kernel/OS2/VS/OS2.sln",
+      "sha256": "2380e70279a29c66d8406bcd3484edd8b979be6ba009a8587ef43b0b12615c29"
+    },
+    {
+      "path": "Microsoft/Windows/Kernel/OS2/VS/OS2.vcxproj",
+      "sha256": "24d0262e23c8e935ec671b7f11cc90b3de86bc59d6edc29a881a89bb078e29a5"
+    },
+    {
+      "path": "Microsoft/Windows/Kernel/OS2/VS/OS2.vcxproj.filters",
+      "sha256": "59923a4434150e8d45fe73dce920fb048784de38630b8c5aec07f7ebf8f10005"
+    },
+    {
+      "path": "Microsoft/Windows/Kernel/OS2/app_hooks.c",
+      "sha256": "f01dc86d65fe3f52a7f0cada5f76a0705f4809e8da6b8a62c09d71aaa2dcfbb7"
+    },
+    {
+      "path": "Microsoft/Windows/Kernel/OS2/main.c",
+      "sha256": "f828fb34e67efb0f1365f4dfa4c19e0bd37cf39bebab93a0f3db06de84d74ff8"
+    },
+    {
+      "path": "Microsoft/Windows/Kernel/OS2/os_cfg.h",
+      "sha256": "8fc81aa3dfddd9565d635ba3b208c20467a1b85d3f65c275a5e38b98c249f70a"
+    },
+    {
+      "path": "Microsoft/Windows/Kernel/OS3/VS/OS3.sln",
+      "sha256": "1c38e526394f43649d6515143f69a3abb8f06eed8da1392dce947f544a10af53"
+    },
+    {
+      "path": "Microsoft/Windows/Kernel/OS3/VS/OS3.vcxproj",
+      "sha256": "c13612657c05e2cfdea7a2af62987b6336a8d391c2c5f4186274f36b0b658741"
+    },
+    {
+      "path": "Microsoft/Windows/Kernel/OS3/VS/OS3.vcxproj.filters",
+      "sha256": "afb3bbaedc3b39d7081efed7ff58957a0a4b2a25ec167c604e47d10135fe3cdf"
+    },
+    {
+      "path": "Microsoft/Windows/Kernel/OS3/main.c",
+      "sha256": "415aae0d80d2ba3ffce5c7d4d9411855c85a713d1aeaf2ff904f53eeb0fc8ce5"
+    },
+    {
+      "path": "Microsoft/Windows/Kernel/OS3/os_app_hooks.c",
+      "sha256": "4b7936e6dcd30f34e8df86cb1cb72235309cb939cdbe25541af587bbbca81b9a"
+    },
+    {
+      "path": "Microsoft/Windows/Kernel/OS3/os_app_hooks.h",
+      "sha256": "bef8f3e230f9fb2c917f3201a5d70d678431dd067aed73a84651459d3194778d"
+    },
+    {
+      "path": "Microsoft/Windows/Kernel/OS3/os_cfg.h",
+      "sha256": "b7a34133195132e5b0bafba656dd9e030b95787b2c8675d581f042f7df4d54bb"
+    },
+    {
+      "path": "Microsoft/Windows/Kernel/OS3/os_cfg_app.h",
+      "sha256": "fd58d5f03b186182a14404536255b31a3052d00509782594a5ea6f5c861f0df7"
+    },
+    {
+      "path": "Microsoft/Windows/Kernel/app_cfg.h",
+      "sha256": "fa4ef9e3c562376d73bf9b4e6a3041cb8ee306952219a61cfabee877a3c00b21"
+    },
+    {
+      "path": "Microsoft/Windows/Kernel/cpu_cfg.h",
+      "sha256": "8805e116d1396d477397b4ef1098564c6f8a3e29d648419eae3001d609304419"
+    },
+    {
+      "path": "Microsoft/Windows/Kernel/lib_cfg.h",
+      "sha256": "82c56c8d73bc79d61eb7af06a26a544f7242b02273a440954f931d514ecad118"
+    },
+    {
+      "path": "ReadMe.txt",
+      "sha256": "bb677607d89212f432af7dc01d00177bc94978dfd032bc7adab4f5b9ab4eccd1"
+    }
+  ]
+}

@@ -1,0 +1,414 @@
+diff --git a/Micrium/Software/uCOS-II/Ports/Win32/Visual Studio/os_cpu_c.c b/Micrium/Software/uCOS-II/Ports/Win32/Visual Studio/os_cpu_c.c
+index cbdffe8..30f00d1 100644
+--- a/Micrium/Software/uCOS-II/Ports/Win32/Visual Studio/os_cpu_c.c	
++++ b/Micrium/Software/uCOS-II/Ports/Win32/Visual Studio/os_cpu_c.c	
+@@ -1234,7 +1234,7 @@ static  DWORD  WINAPI  OSTaskW32 (LPVOID  p_arg)
+     OSSetThreadName(p_stk->ThreadID, p_tcb->OSTCBTaskName);
+ 
+ #if (OS_MSG_TRACE > 0u)
+-    OS_Printf("Task[%3.1d] '%s' Running\n", p_tcb->OSTCBPrio, p_tcb->OSTCBTaskName);
++    //OS_Printf("Task[%3.1d] '%s' Running\n", p_tcb->OSTCBPrio, p_tcb->OSTCBTaskName);
+ #endif
+ 
+     p_stk->TaskState = STATE_RUNNING;
+diff --git a/Micrium/Software/uCOS-II/Source/os_core.c b/Micrium/Software/uCOS-II/Source/os_core.c
+index d6366ec..ddf500f 100644
+--- a/Micrium/Software/uCOS-II/Source/os_core.c
++++ b/Micrium/Software/uCOS-II/Source/os_core.c
+@@ -36,6 +36,70 @@
+ #define  OS_GLOBALS
+ #include <ucos_ii.h>
+ #endif
++static INT32U OS_JobCnt[OS_LOWEST_PRIO + 1];
++static void OS_TraceCtxSw(void);
++
++static void OS_TraceCtxSw(void)
++{
++    OS_TCB* cur = OSTCBCur;
++    OS_TCB* next = OSTCBHighRdy;
++
++    OS_TCB* idle_tcb = OSTCBPrioTbl[OS_LOWEST_PRIO];
++    INT8U   cur_is_idle = (cur == idle_tcb);
++    INT8U   next_is_idle = (next == idle_tcb);
++
++    INT8U cur_prio = OSPrioCur;
++    INT8U next_prio = OSPrioHighRdy;
++
++    unsigned cur_id_disp = cur_is_idle ? OS_LOWEST_PRIO : (cur ? cur->OSTCBId : 0);
++    unsigned next_id_disp = next_is_idle ? OS_LOWEST_PRIO : (next ? next->OSTCBId : 0);
++
++    unsigned long cur_job = OS_JobCnt[cur_prio];
++    unsigned long next_job = OS_JobCnt[next_prio];
++
++    unsigned long ctx_print = (OSCtxSwCtr > 0u) ? (OSCtxSwCtr - 1u) : 0u;
++
++    if (!cur_is_idle && next_is_idle) {
++        printf("%-4d\ttask(%3d)(%3d)\ttask(%3d)        \t%d\r\n",
++            (unsigned long)OSTime, cur_id_disp, cur_job,
++            next_id_disp, ctx_print);
++
++        if ((Output_err = fopen_s(&Output_fp, "./Output.txt", "a")) == 0) {
++            fprintf(Output_fp, "%-4d\ttask(%3d)(%3d)\ttask(%3d)        \t%d\r\n",
++                (unsigned long)OSTime, cur_id_disp, cur_job,
++                next_id_disp, ctx_print);
++            fclose(Output_fp);
++        }
++    }
++    else if (cur_is_idle && !next_is_idle) {
++        printf("%-4d\ttask(%3d)     \ttask(%3d)(%3d)   \t%d\r\n",
++            (unsigned long)OSTime, cur_id_disp,
++            next_id_disp, next_job, ctx_print);
++
++        if ((Output_err = fopen_s(&Output_fp, "./Output.txt", "a")) == 0) {
++            fprintf(Output_fp, "%-4d\ttask(%3d)     \ttask(%3d)(%3d)   \t%d\r\n",
++                (unsigned long)OSTime, cur_id_disp,
++                next_id_disp, next_job, ctx_print);
++            fclose(Output_fp);
++        }
++    }
++    else if (!cur_is_idle && !next_is_idle) {
++        printf("%-4d\ttask(%3d)(%3d)\ttask(%3d)(%3d)   \t%d\r\n",
++            (unsigned long)OSTime, cur_id_disp, cur_job,
++            next_id_disp, next_job, ctx_print);
++
++        if ((Output_err = fopen_s(&Output_fp, "./Output.txt", "a")) == 0) {
++            fprintf(Output_fp, "%-4d\ttask(%3d)(%3d)\ttask(%3d)(%3d)   \t%d\r\n",
++                (unsigned long)OSTime, cur_id_disp, cur_job,
++                next_id_disp, next_job, ctx_print);
++            fclose(Output_fp);
++        }
++    }
++
++    if (!cur_is_idle) {
++        OS_JobCnt[cur_prio]++;
++    }
++}
+ 
+ /*
+ *********************************************************************************************************
+@@ -714,6 +778,7 @@ void  OSIntExit (void)
+                     OSTCBHighRdy->OSTCBCtxSwCtr++;         /* Inc. # of context switches to this task  */
+ #endif
+                     OSCtxSwCtr++;                          /* Keep track of the number of ctx switches */
++                    OS_TraceCtxSw();
+ 
+ #if OS_TASK_CREATE_EXT_EN > 0u
+ #if defined(OS_TLS_TBL_SIZE) && (OS_TLS_TBL_SIZE > 0u)
+@@ -959,6 +1024,10 @@ void  OSTimeTick (void)
+ #endif
+     if (OSRunning == OS_TRUE) {
+ #if OS_TICK_STEP_EN > 0u
++        if (OSTimeGet() > SYSTEM_END_TIME) {
++            OSRunning = OS_FALSE;
++            exit(0);
++        }
+         switch (OSTickStepState) {                         /* Determine whether we need to process a tick  */
+             case OS_TICK_STEP_DIS:                         /* Yes, stepping is disabled                    */
+                  step = OS_TRUE;
+@@ -1718,7 +1787,7 @@ void  OS_Sched (void)
+                 OSTCBHighRdy->OSTCBCtxSwCtr++;         /* Inc. # of context switches to this task      */
+ #endif
+                 OSCtxSwCtr++;                          /* Increment context switch counter             */
+-
++                OS_TraceCtxSw();
+ #if OS_TASK_CREATE_EXT_EN > 0u
+ #if defined(OS_TLS_TBL_SIZE) && (OS_TLS_TBL_SIZE > 0u)
+                 OS_TLS_TaskSw();
+@@ -1754,7 +1823,6 @@ static  void  OS_SchedNew (void)
+ #if OS_LOWEST_PRIO <= 63u                        /* See if we support up to 64 tasks                   */
+     INT8U   y;
+ 
+-
+     y             = OSUnMapTbl[OSRdyGrp];
+     OSPrioHighRdy = (INT8U)((y << 3u) + OSUnMapTbl[OSRdyTbl[y]]);
+ #else                                            /* We support up to 256 tasks                         */
+diff --git a/Micrium/Software/uCOS-II/Source/ucos_ii.h b/Micrium/Software/uCOS-II/Source/ucos_ii.h
+index 861531c..7667eff 100644
+--- a/Micrium/Software/uCOS-II/Source/ucos_ii.h
++++ b/Micrium/Software/uCOS-II/Source/ucos_ii.h
+@@ -61,6 +61,34 @@ extern "C" {
+ *********************************************************************************************************
+ */
+ 
++#include <string.h>
++#define SYSTEM_END_TIME 30
++
++#define INPUT_FILE_NAME "./TaskSet.txt"
++#define OUTPUT_FILE_NAME "./Output.txt"
++#define MAX 20
++#define INFO 4
++
++typedef struct task_para_set {
++    INT16U TaskID;
++    INT16U TaskArriveTime;
++    INT16U TaskExecutionTIme;
++    INT16U TaskPeriodic;
++    INT16U TaskNumber;
++    INT16U TaskPriority;
++} task_para_set;
++
++int TASK_NUMBER;
++OS_STK** Task_STK;
++task_para_set TaskParameter[OS_MAX_TASKS];
++FILE* fp;
++FILE* Output_fp;
++errno_t Output_err;
++
++void    OutFileInit(void);
++void    InputFile(void);
++
++
+ #ifdef   OS_GLOBALS
+ #define  OS_EXT
+ #else
+@@ -633,6 +661,7 @@ typedef struct os_tcb {
+ #if OS_TASK_REG_TBL_SIZE > 0u
+     INT32U           OSTCBRegTbl[OS_TASK_REG_TBL_SIZE];
+ #endif
++
+ } OS_TCB;
+ 
+ 
+diff --git b/Microsoft/Windows/Kernel/OS2/VS/TaskSet.txt b/Microsoft/Windows/Kernel/OS2/VS/TaskSet.txt
+new file mode 100644
+index 0000000..e4b7c6a
+--- /dev/null
++++ b/Microsoft/Windows/Kernel/OS2/VS/TaskSet.txt
+@@ -0,0 +1,2 @@
++1 0 0 3
++2 0 0 4
+\ No newline at end of file
+diff --git a/Microsoft/Windows/Kernel/OS2/app_hooks.c b/Microsoft/Windows/Kernel/OS2/app_hooks.c
+index 039fd44..07a2790 100644
+--- a/Microsoft/Windows/Kernel/OS2/app_hooks.c
++++ b/Microsoft/Windows/Kernel/OS2/app_hooks.c
+@@ -45,6 +45,62 @@
+ */
+ 
+ 
++void OutFileInit() {
++    if ((Output_err = fopen_s(&Output_fp, OUTPUT_FILE_NAME, "w") == 0))
++        fclose(Output_fp);
++    else
++        printf("Error to clear output file");
++}
++
++void InputFile() {
++    errno_t err;
++
++    if ((err = fopen_s(&fp, INPUT_FILE_NAME, "r")) == 0)
++        printf("The file %s was opened", INPUT_FILE_NAME);
++    else 
++        printf("The file %s was not opened", INPUT_FILE_NAME);
++
++    char str[MAX];
++    char* ptr;
++    char* pTmp = NULL;
++    int TaskInfo[INFO], i, j = 0;
++    TASK_NUMBER = 0;
++
++    while (!feof(fp)) {
++        i = 0;
++        memset(str, 0, sizeof(str));
++        fgets(str, sizeof(str) - 1, fp);
++        ptr = strtok_s(str, " ", &pTmp);
++
++        while (ptr != NULL) {
++            TaskInfo[i] = atoi(ptr);
++            ptr = strtok_s(NULL, " ", &pTmp);
++
++            if (i == 0) {
++                TASK_NUMBER++;
++                TaskParameter[j].TaskID = TASK_NUMBER;
++            }
++            else if (i == 1)
++                TaskParameter[j].TaskArriveTime = TaskInfo[i];
++            else if (i == 2)
++                TaskParameter[j].TaskExecutionTIme = TaskInfo[i];
++            else if (i == 3)
++                TaskParameter[j].TaskPeriodic = TaskInfo[i];
++
++            i++;
++        }
++
++        TaskParameter[j].TaskPriority = j;
++
++        j++;
++    }
++
++    fclose(fp);
++
++
++}
++
++
+ /*
+ *********************************************************************************************************
+ *                                           LOCAL CONSTANTS
+diff --git a/Microsoft/Windows/Kernel/OS2/main.c b/Microsoft/Windows/Kernel/OS2/main.c
+index 495aede..5226ae2 100644
+--- a/Microsoft/Windows/Kernel/OS2/main.c
++++ b/Microsoft/Windows/Kernel/OS2/main.c
+@@ -39,6 +39,7 @@
+ #include  <os.h>
+ 
+ #include  "app_cfg.h"
++#define TASK_STACKSIZE 2048
+ 
+ 
+ /*
+@@ -81,6 +82,45 @@ static  void  StartupTask (void  *p_arg);
+ *********************************************************************************************************
+ */
+ 
++static void task1(void* p_arg);
++static void task2(void* p_arg);
++static void task(void* p_arg);
++/*
++void task1(void* p_arg) {
++    task_para_set* task_data;
++    task_data = p_arg;
++
++    while (1) {
++        printf("Tick: %d, Hello from task%d\n", OSTime, task_data->TaskID);
++        OSTimeDly(task_data->TaskPeriodic);
++    }
++}
++
++void task2(void* p_arg) {
++    task_para_set* task_data;
++    task_data = p_arg;
++
++    while (1) {
++        printf("Tick: %d, Hello from task%d\n", OSTime, task_data->TaskID);
++        OSTimeDly(task_data->TaskPeriodic);
++    }
++}
++*/
++void task(void* p_arg) {
++    task_para_set* task_data;
++    task_data = p_arg;
++
++    while (1) {
++        printf("%-4d\ttask(%3d) is running\n", OSTime, task_data->TaskID);
++        if((Output_err = fopen_s(&Output_fp,"./Output.txt","a"))== 0)
++        {   
++            fprintf(Output_fp, "%-4d\ttask(%3d) is running\n", OSTime, task_data->TaskID);
++            fclose(Output_fp);
++        }
++        OSTimeDly(task_data->TaskPeriodic);
++    }
++}
++
+ int  main (void)
+ {
+ #if OS_TASK_NAME_EN > 0u
+@@ -96,21 +136,61 @@ int  main (void)
+ 
+     OSInit();                                                   /* Initialize uC/OS-II                                  */
+ 
+-    OSTaskCreateExt( StartupTask,                               /* Create the startup task                              */
+-                     0,
+-                    &StartupTaskStk[APP_CFG_STARTUP_TASK_STK_SIZE - 1u],
+-                     APP_CFG_STARTUP_TASK_PRIO,
+-                     APP_CFG_STARTUP_TASK_PRIO,
+-                    &StartupTaskStk[0u],
+-                     APP_CFG_STARTUP_TASK_STK_SIZE,
+-                     0u,
+-                    (OS_TASK_OPT_STK_CHK | OS_TASK_OPT_STK_CLR));
+ 
++    OutFileInit();
++    InputFile();
++
++    Task_STK = malloc(TASK_NUMBER * sizeof(int*));
++
++
++    for (int n = 0; n < TASK_NUMBER; n++) {
++        Task_STK[n] = malloc(TASK_STACKSIZE * sizeof(int));
++    }
++    
++    for (int n = 0; n < TASK_NUMBER; n++) {
++        OSTaskCreateExt(task,
++            &TaskParameter[n],
++            &Task_STK[n][TASK_STACKSIZE - 1],
++            TaskParameter[n].TaskPeriodic,
++            TaskParameter[n].TaskID,
++            &Task_STK[n][0],
++            TASK_STACKSIZE,
++            &TaskParameter[n],
++            (OS_TASK_OPT_STK_CHK | OS_TASK_OPT_STK_CLR));
++    }
++
++ /*   OSTaskCreateExt(task1,
++        &TaskParameter[0],
++        &Task_STK[0][TASK_STACKSIZE - 1],
++        TaskParameter[0].TaskPeriodic,
++        TaskParameter[0].TaskID,
++        &Task_STK[0][0],
++        TASK_STACKSIZE,
++        &TaskParameter[0],
++        (OS_TASK_OPT_STK_CHK | OS_TASK_OPT_STK_CLR));
++
++    OSTaskCreateExt(task2,
++        &TaskParameter[1],
++        &Task_STK[1][TASK_STACKSIZE - 1],
++        TaskParameter[1].TaskPeriodic,
++        TaskParameter[1].TaskID,
++        &Task_STK[1][0],
++        TASK_STACKSIZE,
++        &TaskParameter[1],
++        (OS_TASK_OPT_STK_CHK | OS_TASK_OPT_STK_CLR));
++*/
+ #if OS_TASK_NAME_EN > 0u
+     OSTaskNameSet(         APP_CFG_STARTUP_TASK_PRIO,
+                   (INT8U *)"Startup Task",
+                            &os_err);
+ #endif
++    OSTimeSet(0);
++    printf("%-4d\t**************  task(%3d)(%3d)   \t%d\r\n", OSTime, TaskParameter[0].TaskID, TaskParameter[0].TaskNumber, OSCtxSwCtr);
++    if ((Output_err = fopen_s(&Output_fp, "./Output.txt", "a")) == 0)
++    {
++        fprintf(Output_fp, "%-4d\t**************  task(%3d)(%3d)   \t%d\r\n", OSTime, TaskParameter[0].TaskID, TaskParameter[0].TaskNumber, OSCtxSwCtr);
++        fclose(Output_fp);
++    }
+     OSStart();                                                  /* Start multitasking (i.e. give control to uC/OS-II)   */
+ 
+     while (DEF_ON) {                                            /* Should Never Get Here.                               */
+diff --git a/Microsoft/Windows/Kernel/OS2/os_cfg.h b/Microsoft/Windows/Kernel/OS2/os_cfg.h
+index 0175f40..89a78e2 100644
+--- a/Microsoft/Windows/Kernel/OS2/os_cfg.h
++++ b/Microsoft/Windows/Kernel/OS2/os_cfg.h
+@@ -48,7 +48,7 @@
+ #define OS_SCHED_LOCK_EN          1u   /* Include code for OSSchedLock() and OSSchedUnlock()           */
+ 
+ #define OS_TICK_STEP_EN           1u   /* Enable tick stepping feature for uC/OS-View                  */
+-#define OS_TICKS_PER_SEC        100u   /* Set the number of ticks in one second                        */
++#define OS_TICKS_PER_SEC          1u   /* Set the number of ticks in one second                        */
+ 
+ #define OS_TLS_TBL_SIZE           0u   /* Size of Thread-Local Storage Table                           */
+ 
+@@ -68,7 +68,7 @@
+ #define OS_TASK_PROFILE_EN        1u   /*     Include variables in OS_TCB for profiling                */
+ #define OS_TASK_QUERY_EN          1u   /*     Include code for OSTaskQuery()                           */
+ #define OS_TASK_REG_TBL_SIZE      1u   /*     Size of task variables array (#of INT32U entries)        */
+-#define OS_TASK_STAT_EN           1u   /*     Enable (1) or Disable(0) the statistics task             */
++#define OS_TASK_STAT_EN           0u   /*     Enable (1) or Disable(0) the statistics task             */
+ #define OS_TASK_STAT_STK_CHK_EN   1u   /*     Check task stacks from statistic task                    */
+ #define OS_TASK_SUSPEND_EN        1u   /*     Include code for OSTaskSuspend() and OSTaskResume()      */
+ #define OS_TASK_SW_HOOK_EN        1u   /*     Include code for OSTaskSwHook()                          */
+@@ -136,7 +136,7 @@
+ 
+ 
+                                        /* --------------------- TIMER MANAGEMENT --------------------- */
+-#define OS_TMR_EN                 1u   /* Enable (1) or Disable (0) code generation for TIMERS         */
++#define OS_TMR_EN                 0u   /* Enable (1) or Disable (0) code generation for TIMERS         */
+ #define OS_TMR_CFG_MAX           16u   /*     Maximum number of timers                                 */
+ #define OS_TMR_CFG_NAME_EN        1u   /*     Determine timer names                                    */
+ #define OS_TMR_CFG_WHEEL_SIZE     7u   /*     Size of timer wheel (#Spokes)                            */
+@@ -148,4 +148,4 @@
+ #define OS_TRACE_API_ENTER_EN     0u   /* Enable (1) or Disable (0) uC/OS-II Trace API enter instrum.  */
+ #define OS_TRACE_API_EXIT_EN      0u   /* Enable (1) or Disable (0) uC/OS-II Trace API exit  instrum.  */
+ 
+-#endif
++#endif
+\ No newline at end of file
